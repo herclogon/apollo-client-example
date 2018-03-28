@@ -17,8 +17,20 @@
       }
     `;
 
+    var httpLink = new apolloHttpLink({
+        uri: apolloHttpLinkUrl
+    });
+
+    // Create a WebSocket link:
+    var wsLink = new apolloWebSocketLink({
+        uri: apolloWebSocketLinkUrl,
+        options: {
+            reconnect: true
+        }
+    });
+
     var client = new apolloClient({
-        link: apolloCreateUniLink(apolloHttpLinkUrl, apolloWebSocketLinkUrl),
+        link: apolloCreateUniLink(httpLink, wsLink),
         cache: new apolloInMemoryCache()
     });
 

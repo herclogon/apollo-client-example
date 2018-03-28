@@ -14,20 +14,7 @@ window.apolloInMemoryCache = InMemoryCache;
 window.apolloClient = ApolloClient;
 window.apolloHttpLink = HttpLink;
 
-window.apolloCreateUniLink = function (httpUrl, wsUrl) {
-    // Create an http link:
-    const httpLink = new HttpLink({
-        uri: httpUrl
-    });
-
-    // Create a WebSocket link:
-    const wsLink = new WebSocketLink({
-        uri: wsUrl,
-        options: {
-            reconnect: true
-        }
-    });
-
+window.apolloCreateUniLink = function (httpLink, wsLink) {
     // using the ability to split links, you can send data to each link
     // depending on what kind of operation is being sent
     const link = split(
@@ -43,4 +30,3 @@ window.apolloCreateUniLink = function (httpUrl, wsUrl) {
 };
 
 console.log('Module loaded.');
-
