@@ -14,16 +14,13 @@ window.apolloInMemoryCache = InMemoryCache;
 window.apolloClient = ApolloClient;
 window.apolloHttpLink = HttpLink;
 
-window.apolloHttpLinkUrl = 'http://localhost:2000/graphql';
-window.apolloWebSocketLinkUrl = 'ws://localhost:3000/';
-
 window.apolloCreateUniLink = function (httpUrl, wsUrl) {
-// Create an http link:
+    // Create an http link:
     const httpLink = new HttpLink({
         uri: httpUrl
     });
 
-// Create a WebSocket link:
+    // Create a WebSocket link:
     const wsLink = new WebSocketLink({
         uri: wsUrl,
         options: {
@@ -31,8 +28,8 @@ window.apolloCreateUniLink = function (httpUrl, wsUrl) {
         }
     });
 
-// using the ability to split links, you can send data to each link
-// depending on what kind of operation is being sent
+    // using the ability to split links, you can send data to each link
+    // depending on what kind of operation is being sent
     const link = split(
         // split based on operation type
         ({query}) => {
@@ -44,7 +41,6 @@ window.apolloCreateUniLink = function (httpUrl, wsUrl) {
     );
     return link;
 };
-
 
 console.log('Module loaded.');
 
