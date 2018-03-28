@@ -6,7 +6,7 @@
     var apolloHttpLinkUrl = 'http://localhost:2000/graphql';
     var apolloWebSocketLinkUrl = 'ws://localhost:3000';
 
-    const authLink = apolloSetContext((_, {headers}) => {
+    var authLink = apolloSetContext((_, {headers}) => {
         // return the headers to the context so httpLink can read them
         return {
             headers: {
