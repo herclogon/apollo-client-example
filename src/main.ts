@@ -1,6 +1,7 @@
 import { HttpLink } from 'apollo-link-http';
 import { InMemoryCache } from 'apollo-cache-inmemory';
 import ApolloClient from 'apollo-client/ApolloClient';
+import { setContext } from 'apollo-link-context';
 import gql from 'graphql-tag';
 import { WebSocketLink } from 'apollo-link-ws';
 import { getMainDefinition } from 'apollo-utilities';
@@ -13,6 +14,7 @@ window.apolloWebSocketLink = WebSocketLink;
 window.apolloInMemoryCache = InMemoryCache;
 window.apolloClient = ApolloClient;
 window.apolloHttpLink = HttpLink;
+window.apolloSetContext = setContext;
 
 window.apolloCreateUniLink = function (httpLink, wsLink) {
     // using the ability to split links, you can send data to each link

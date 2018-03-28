@@ -6,6 +6,17 @@
     var apolloHttpLinkUrl = 'http://localhost:2000/graphql';
     var apolloWebSocketLinkUrl = 'ws://localhost:3000';
 
+    const authLink = apolloSetContext((_, {headers}) => {
+        // return the headers to the context so httpLink can read them
+        return {
+            headers: {
+                ...headers,
+                "X-CSRFToken": document.cookie['csrftoken'] ? document.cookie['csrftoken'] : ''
+            }
+        }
+    });
+
+
     var COMMENT_QUERY = gql`
       query Comment($repoName: String!) {
         entry(repoFullName: $repoName) {
@@ -30,7 +41,7 @@
     });
 
     var client = new apolloClient({
-        link: apolloCreateUniLink(httpLink, wsLink),
+        link: authLink.concat(apolloCreateUniLink(httpLink, wsLink), authLink),
         cache: new apolloInMemoryCache()
     });
 
