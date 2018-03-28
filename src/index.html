@@ -1,0 +1,33 @@
+<html>
+<head>
+</head>
+<body>
+<script>
+    window.apolloHttpLinkUrl = 'http://localhost:2000/graphql';
+    window.apolloWebSocketLinkUrl = 'ws://localhost:3000/sss';
+
+    var COMMENT_QUERY = gql`
+      query Comment($repoName: String!) {
+        entry(repoFullName: $repoName) {
+          comments {
+            id
+            content
+          }
+        }
+      }
+    `;
+
+    var client = new apolloClient({
+        link: window.apolloUniLink,
+        cache: new apolloInMemoryCache()
+    });
+
+    client.watchQuery({
+        query: COMMENT_QUERY,
+        variables: {}
+    }).subscribe((res) => {
+        console.log('!!!', res);
+    })
+</script>
+</body>
+</html>

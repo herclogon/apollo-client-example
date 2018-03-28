@@ -1,0 +1,29 @@
+{
+    "name": "my-apollo-client",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "webpack": "webpack"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "apollo-cache-inmemory": "^1.1.12",
+        "apollo-client": "^2.2.8",
+        "apollo-link-http": "^1.5.3",
+        "apollo-link-ws": "^1.0.7",
+        "circular-dependency-plugin": "^5.0.1",
+        "graphql": "^0.13.2",
+        "graphql-tag": "^2.8.0",
+        "html-webpack-plugin": "^3.1.0",
+        "subscriptions-transport-ws": "^0.9.7",
+        "ts-loader": "^4.1.0",
+        "typescript": "^2.8.1",
+        "webpack": "^4.3.0"
+    },
+    "devDependencies": {
+        "raw-loader": "^0.5.1",
+        "webpack-cli": "^2.0.13"
+    }
+}

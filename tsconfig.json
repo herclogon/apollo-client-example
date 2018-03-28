@@ -1,0 +1,30 @@
+{
+    "compileOnSave": false,
+    "compilerOptions": {
+        "allowJs": true,
+        "outDir": "./dist/out-tsc",
+        "sourceMap": true,
+        "declaration": false,
+        "moduleResolution": "node",
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        // Turn on support of `ES2015 iteration protocol for ES3 and ES5 targets`
+        // @see https://blog.mariusschulz.com/2017/06/30/typescript-2-3-downlevel-iteration-for-es3-es5
+        "downlevelIteration": true,
+        "target": "es5",
+        "types": [
+
+        ],
+        "typeRoots": [
+            "node_modules/@types"
+        ],
+        "rootDirs": [
+            "app"
+        ],
+        "lib": [
+            "dom",
+            "es6",
+            "dom.iterable"
+        ]
+    }
+}
