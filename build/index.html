@@ -3,8 +3,8 @@
 <script type="text/javascript" src="main.bundle.js"></script></head>
 <body>
 <script>
-    window.apolloHttpLinkUrl = 'http://localhost:2000/graphql';
-    window.apolloWebSocketLinkUrl = 'ws://localhost:3000/sss';
+    var apolloHttpLinkUrl = 'http://localhost:2000/graphql';
+    var apolloWebSocketLinkUrl = 'ws://localhost:3000';
 
     var COMMENT_QUERY = gql`
       query Comment($repoName: String!) {
@@ -18,7 +18,7 @@
     `;
 
     var client = new apolloClient({
-        link: window.apolloUniLink,
+        link: apolloCreateUniLink(apolloHttpLinkUrl, apolloWebSocketLinkUrl),
         cache: new apolloInMemoryCache()
     });
 

@@ -8,8 +8,6 @@ const path = require('path');
 const rxPaths = require('rxjs/_esm5/path-mapping');
 
 const nodeModules = path.join(process.cwd(), 'node_modules');
-const realNodeModules = fs.realpathSync(nodeModules);
-const genDirNodeModules = path.join(process.cwd(), 'src', '$$_gendir', 'node_modules');
 
 /**
  * Sort order of bundles load in `index.html`.

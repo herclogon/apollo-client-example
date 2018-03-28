@@ -15,35 +15,36 @@ window.apolloClient = ApolloClient;
 window.apolloHttpLink = HttpLink;
 
 window.apolloHttpLinkUrl = 'http://localhost:2000/graphql';
-window.apolloWebSocketLinkUrl = 'ws://localhost:3000/sss';
+window.apolloWebSocketLinkUrl = 'ws://localhost:3000/';
 
-
+window.apolloCreateUniLink = function (httpUrl, wsUrl) {
 // Create an http link:
-const httpLink = new HttpLink({
-    uri: window.apolloHttpLinkUrl
-});
+    const httpLink = new HttpLink({
+        uri: httpUrl
+    });
 
 // Create a WebSocket link:
-const wsLink = new WebSocketLink({
-    uri: window.apolloWebSocketLinkUrl,
-    options: {
-        reconnect: true
-    }
-});
+    const wsLink = new WebSocketLink({
+        uri: wsUrl,
+        options: {
+            reconnect: true
+        }
+    });
 
 // using the ability to split links, you can send data to each link
 // depending on what kind of operation is being sent
-const link = split(
-    // split based on operation type
-    ({query}) => {
-        const {kind, operation} = getMainDefinition(query);
-        return kind === 'OperationDefinition' && operation === 'subscription';
-    },
-    wsLink,
-    httpLink,
-);
+    const link = split(
+        // split based on operation type
+        ({query}) => {
+            const {kind, operation} = getMainDefinition(query);
+            return kind === 'OperationDefinition' && operation === 'subscription';
+        },
+        wsLink,
+        httpLink,
+    );
+    return link;
+};
 
-window.apolloUniLink = link;
 
 console.log('Module loaded.');
 
