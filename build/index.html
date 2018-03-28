@@ -6,7 +6,7 @@
     var apolloHttpLinkUrl = 'http://localhost:8000/pseven/graphql';
     var apolloWebSocketLinkUrl = 'ws://localhost:8000/pseven';
 
-    var csrftoken = jsCookie['csrftoken'] ? jsCookie['csrftoken'] : '';
+    var csrftoken = jsCookie('csrftoken') ? jsCookie('csrftoken') : '';
     var authLink = apolloSetContext((_, {headers}) => {
         // return the headers to the context so httpLink can read them
         return {

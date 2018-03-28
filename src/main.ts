@@ -7,8 +7,10 @@ import { WebSocketLink } from 'apollo-link-ws';
 import { getMainDefinition } from 'apollo-utilities';
 import { split } from 'apollo-link';
 import * as jsCookie from 'js-cookie';
+import * as $ from 'jquery';
 
 declare var window: any;
+window.$ = $;
 window.gql = gql;
 window.apolloWebSocketLink = WebSocketLink;
 window.apolloInMemoryCache = InMemoryCache;
