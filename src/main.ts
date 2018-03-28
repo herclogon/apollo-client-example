@@ -6,7 +6,7 @@ import gql from 'graphql-tag';
 import { WebSocketLink } from 'apollo-link-ws';
 import { getMainDefinition } from 'apollo-utilities';
 import { split } from 'apollo-link';
-
+import * as jsCookie from 'js-cookie';
 
 declare var window: any;
 window.gql = gql;
@@ -15,6 +15,7 @@ window.apolloInMemoryCache = InMemoryCache;
 window.apolloClient = ApolloClient;
 window.apolloHttpLink = HttpLink;
 window.apolloSetContext = setContext;
+window.jsCookie = jsCookie;
 
 window.apolloCreateUniLink = function (httpLink, wsLink) {
     // using the ability to split links, you can send data to each link

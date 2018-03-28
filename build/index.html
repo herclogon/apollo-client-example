@@ -3,15 +3,16 @@
 <script type="text/javascript" src="main.bundle.js"></script></head>
 <body>
 <script>
-    var apolloHttpLinkUrl = 'http://localhost:2000/graphql';
-    var apolloWebSocketLinkUrl = 'ws://localhost:3000';
+    var apolloHttpLinkUrl = 'http://localhost:8000/pseven/graphql';
+    var apolloWebSocketLinkUrl = 'ws://localhost:8000/pseven';
 
-    const authLink = apolloSetContext((_, {headers}) => {
+    var csrftoken = jsCookie['csrftoken'] ? jsCookie['csrftoken'] : '';
+    var authLink = apolloSetContext((_, {headers}) => {
         // return the headers to the context so httpLink can read them
         return {
             headers: {
                 ...headers,
-                "X-CSRFToken": document.cookie['csrftoken'] ? document.cookie['csrftoken'] : ''
+                "X-CSRFToken": csrftoken
             }
         }
     });
