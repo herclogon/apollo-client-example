@@ -37,9 +37,9 @@
     client.watchQuery({
         query: COMMENT_QUERY,
         variables: {}
-    }).subscribe((res) => {
-        console.log('!!!', res);
-    })
+    }).subscribe(function (res) {
+        console.log('client.watchQuery', res);
+    });
 </script>
 </body>
 </html>
