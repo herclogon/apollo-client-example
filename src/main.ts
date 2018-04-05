@@ -7,10 +7,9 @@ import { WebSocketLink } from 'apollo-link-ws';
 import { getMainDefinition } from 'apollo-utilities';
 import { split } from 'apollo-link';
 import * as jsCookie from 'js-cookie';
-import * as $ from 'jquery';
+import * as _ from 'lodash';
 
 declare var window: any;
-window.$ = $;
 window.gql = gql;
 window.apolloWebSocketLink = WebSocketLink;
 window.apolloInMemoryCache = InMemoryCache;
@@ -18,6 +17,7 @@ window.apolloClient = ApolloClient;
 window.apolloHttpLink = HttpLink;
 window.apolloSetContext = setContext;
 window.jsCookie = jsCookie;
+window._ = _;
 
 window.apolloCreateUniLink = function (httpLink, wsLink) {
     // using the ability to split links, you can send data to each link

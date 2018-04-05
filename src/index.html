@@ -1,57 +1,331 @@
 <html>
 <head>
+    <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 </head>
 <body>
-<script>
-    var apolloHttpLinkUrl = 'http://localhost:8000/pseven/graphql';
-    var apolloWebSocketLinkUrl = 'ws://localhost:8000/pseven';
 
-    var csrftoken = jsCookie('csrftoken') ? jsCookie('csrftoken') : '';
-    var authLink = apolloSetContext((_, {headers}) => {
-        // return the headers to the context so httpLink can read them
-        return {
-            headers: {
-                ...headers,
-                "X-CSRFToken": csrftoken
+<div class="app-container">
+    <div class="app-container__toolbar">
+        <div class="app-container__toolbar_buttons">
+            <div class="app-container__toolbar_button">
+                <button class="app-container__add-block-button">add block
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="app-container__panel-container">
+        <div class="app-container__panel">
+        </div>
+        <div class="app-container__panel">
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        var client = createGraphQlClient();
+        var counter = 10;
+
+        init();
+
+        function init() {
+            // initial data load
+            this.query = gql(`
+                query blocks {
+                    blocks {
+                        name
+                        uid
+                        color
+                        position {
+                            top
+                            left
+                        }
+                    }
+                }`
+            );
+
+            client.watchQuery({
+                query: query
+            }).subscribe(_onQueryChange);
+
+
+
+            $('.app-container__add-block-button').click(_onBlockAddClick);
+
+
+
+            _activateSubscriptions();
+        }
+
+        function _onBlockAddClick(event) {
+            let addBlockMutation = gql(`
+                mutation blockAdd($input: BlockAddInput!) {
+                    blockAdd(input: $input) {
+                      name
+                      uid
+                      color
+                      position {
+                        top
+                        left
+                      }
+                    }
+              }`
+            );
+
+            let uid = Math.random() + '';
+            let name = `Block #${counter++}`;
+            client.mutate({
+                mutation: addBlockMutation,
+                variables: {
+                    input: {
+                        name,
+                        uid,
+                        position: {
+                            top: 15,
+                            left: 15
+                        }
+                    }
+                },
+                optimisticResponse: {
+                    __typename: "Mutation",
+                    blockAdd: {
+                        name,
+                        uid,
+                        color: 'white',
+                        position: {
+                            top: 15,
+                            left: 15,
+                            __typename: "BlockPosition",
+                        },
+                        __typename: "Block",
+                    }
+                },
+                update: function(proxy, optimisticResponse) {
+                    // Read the data from our cache for this query.
+                    const data = proxy.readQuery({query: this.query});
+                    data.blocks.push(optimisticResponse.data.blockAdd);
+                    console.log('!!!!!!!!!!!!', optimisticResponse, data);
+                    console.log('WRITE', {query: this.query, data});
+                    proxy.writeQuery({query: this.query, data});
+                }
+            }).then(function(res) {
+                console.log('_onBlockAddClick < ', res);
+                _syncBlock(res.data.blockAdd)
+            });
+        }
+
+        function _activateSubscriptions() {
+            let moveSubscription = gql(`
+                subscription blockMove {
+                    blockMove {
+                        args {
+                          uid
+                          position {
+                            top
+                            left
+                          }
+                        }
+                        result
+                    }
+                }`
+            );
+
+            client.subscribe({
+                query: moveSubscription,
+                variables: {}
+            }).subscribe(function(res) {
+                console.log(Date.now(), 'client.subscribe', res);
+                let elSelector = ".app-container__draggable-block[data-block_id='"
+                    + res.data.blockMove.args.uid + "']";
+                console.log('elSelector = ', elSelector);
+                _syncBlock(res.data.blockMove.args);
+            });
+
+
+            let blockAddSubscription = gql(`
+                subscription blockAdd {
+                    blockAdd {
+                        result {
+                            uid
+                            name
+                            color
+                            position {
+                                top
+                                left
+                            }
+                        }
+                    }
+                }`
+            );
+
+            client.subscribe({
+                query: blockAddSubscription,
+                variables: {}
+            }).subscribe(function(res) {
+                console.log(Date.now(), 'blockAddSubscription', res);
+                let elSelector = ".app-container__draggable-block[data-block_id='"
+                    + res.data.blockAdd.result.uid + "']";
+                console.log('elSelector = ', elSelector);
+                _syncBlock(res.data.blockAdd.result);
+            });
+        }
+
+        function _onBlockMove(event, ui) {
+            let blockMoveMutation = gql(`
+                mutation blockMove($input: BlockMoveInput!) {
+                    blockMove(input: $input)
+                }`
+            );
+
+            let variables = {
+                input: {
+                    uid: $(ui.helper[0]).attr('data-block_uid'),
+                    position: ui.position
+                }
+            };
+
+            console.log('blockMoveMutation > ', variables);
+            client.mutate({
+                mutation: blockMoveMutation,
+                variables: variables
+            }).then(function(res) {
+                console.log('blockMoveMutation < ', res);
+            });
+        }
+
+        function _onQueryChange(event) {
+            console.log('_onQueryChange', event.data);
+            event.data.blocks.forEach(function(block) {
+                _syncBlock(block);
+            });
+        }
+
+        /**
+         * Sync block GUI according to block data: change name / position in
+         * existing elements, create a new one in not exist.
+         *
+         * @todo: Support block remove case.
+         */
+        function _syncBlock(block) {
+            let elBlock = $(`.app-container__draggable-block[data-block_uid="${block.uid}"]`);
+            console.log('elBlock', block, elBlock);
+            if (typeof elBlock[0] !== 'undefined') {
+                elBlock.css({
+                    top: block.position.top,
+                    left: block.position.left
+                });
+                elBlock.css({'background-color': block.color});
+                elBlock.html(block.name);
+            } else {
+                let el = $(`
+                            <div id="block-${block.uid}"
+                                 data-block_uid="${block.uid}"
+                                 class="app-container__draggable-block"
+                                 style="background-color: ${block.color};
+                                   left: ${block.position.left};
+                                   top: ${block.position.top}">
+                                 ${block.name}
+                            </div>
+                         `);
+                $('.app-container__panel').append(el);
+
+                // enable blocks dragging and mutation call on move
+                $(`.app-container__draggable-block[data-block_uid="${block.uid}"]`).draggable({
+                    drag: _onBlockMove
+                });
             }
         }
-    });
 
+        function createGraphQlClient() {
+            var apolloHttpLinkUrl = 'http://localhost:3000/graphql';
+            var apolloWebSocketLinkUrl = 'ws://localhost:3000/subscriptions';
 
-    var COMMENT_QUERY = gql`
-      query Comment($repoName: String!) {
-        entry(repoFullName: $repoName) {
-          comments {
-            id
-            content
-          }
+            var csrftoken = jsCookie('csrftoken') ? jsCookie('csrftoken') : '';
+            var authLink = apolloSetContext((_, {headers}) => {
+                // return the headers to the context so httpLink can read them
+                return {
+                    headers: {
+                        ...headers,
+                        "X-CSRFToken": csrftoken
+                    }
+                }
+            });
+
+            var httpLink = new apolloHttpLink({
+                uri: apolloHttpLinkUrl
+            });
+
+            // Create a WebSocket link:
+            var wsLink = new apolloWebSocketLink({
+                uri: apolloWebSocketLinkUrl,
+                options: {
+                    reconnect: true
+                }
+            });
+
+            var client = new apolloClient({
+                link: authLink.concat(apolloCreateUniLink(httpLink, wsLink), authLink),
+                cache: new apolloInMemoryCache()
+            });
+
+            return client;
         }
-      }
-    `;
 
-    var httpLink = new apolloHttpLink({
-        uri: apolloHttpLinkUrl
-    });
-
-    // Create a WebSocket link:
-    var wsLink = new apolloWebSocketLink({
-        uri: apolloWebSocketLinkUrl,
-        options: {
-            reconnect: true
-        }
-    });
-
-    var client = new apolloClient({
-        link: authLink.concat(apolloCreateUniLink(httpLink, wsLink), authLink),
-        cache: new apolloInMemoryCache()
-    });
-
-    client.watchQuery({
-        query: COMMENT_QUERY,
-        variables: {}
-    }).subscribe(function (res) {
-        console.log('client.watchQuery', res);
-    });
+    })();
 </script>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    .app-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-container__toolbar {
+        border: solid 1px gray;
+        margin: 5px;
+        height: 5rem;
+    }
+
+    .app-container__toolbar_buttons {
+        display: table;
+        height: 100%;
+        padding: 20px;
+    }
+
+    .app-container__toolbar_button {
+        display: table-cell;
+        vertical-align: middle;
+    }
+
+    .app-container__panel-container {
+        flex: 1;
+        display: flex;
+    }
+
+    .app-container__panel {
+        display: block;
+        width: 100%;
+        border: 1px solid gray;
+        margin: 5px;
+    }
+
+    .app-container__draggable-block {
+        background: chocolate;
+        border: 1px solid black;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+
 </body>
 </html>
