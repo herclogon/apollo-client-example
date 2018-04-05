@@ -73,27 +73,27 @@ const typeDefs = `
   #
   
   type Subscription { 
-      blockAdd: BlockAddEvent
-      blockMove: BlockMoveEvent
+      blockAdd(input: blockAddSubscriptionInput): blockAddSubscriptionPayload
+      blockMove(input: blockMoveSubscriptionInput): blockMoveSubscriptionPayload
   }
 
   type BlockMoveEvent {
-      input: BlockMoveMutator!,
+      input: BlockMoveParams!,
       payload: BlockMovePayload! 
   }
 
   type BlockAddEvent {
-      input: BlockAddMutator!,
+      input: BlockMoveParams!,
       payload: BlockAddPayload
   }
   
-  type BlockAddMutator {
+  type BlockAddParams {
       uid: String!
       name: String!
       position: BlockPosition!
   }  
   
-  type BlockMoveMutator {
+  type BlockMoveParams {
       uid: String!
       position: BlockPosition!  
   }
@@ -189,6 +189,7 @@ const resolvers = {
 
             },
             subscribe: (res) => {
+                console.log('!!!! res', arguments);
                 return pubsub.asyncIterator('blockAdd')
             }
         },
