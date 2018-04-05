@@ -1,10 +1,11 @@
 <html>
 <head>
-<script type="text/javascript" src="main.bundle.js"></script></head>
+    <script type="text/javascript" src="main.bundle.js"></script>
+</head>
 <body>
 <script>
-    var apolloHttpLinkUrl = 'http://localhost:8000/pseven/graphql';
-    var apolloWebSocketLinkUrl = 'ws://localhost:8000/pseven';
+    var apolloHttpLinkUrl = 'http://localhost:3000/graphql';
+    var apolloWebSocketLinkUrl = 'ws://localhost:3000/subscriptions';
 
     var csrftoken = jsCookie('csrftoken') ? jsCookie('csrftoken') : '';
     var authLink = apolloSetContext((_, {headers}) => {
@@ -17,13 +18,11 @@
         }
     });
 
-
     var COMMENT_QUERY = gql`
-      query Comment($repoName: String!) {
-        entry(repoFullName: $repoName) {
-          comments {
-            id
-            content
+      subscription onCommentAdded {
+        onCommentAdded {
+          books {
+            title
           }
         }
       }
@@ -46,12 +45,12 @@
         cache: new apolloInMemoryCache()
     });
 
-    client.watchQuery({
-        query: COMMENT_QUERY,
-        variables: {}
-    }).subscribe(function (res) {
-        console.log('client.watchQuery', res);
-    });
+    // client.subscribe({
+    //     query: COMMENT_QUERY,
+    //     variables: {}
+    // }).subscribe(function (res) {
+    //     console.log(Date.now(), 'client.subscribe', res);
+    // });
 </script>
 </body>
 </html>
