@@ -152,7 +152,7 @@ const resolvers = {
         blockAdd: {
             resolve: (payload, args, context, info) => {
                 let block = {
-                    name: 'block #' + blockNameCounter++,
+                    name: 'Block #' + blockNameCounter++,
                     uid: args.input.uid,
                     color: _.sample(['khaki', 'hotpink', 'grey', 'lightblue', 'red']),
                     position: {
