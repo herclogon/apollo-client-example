@@ -5,18 +5,25 @@ const {makeExecutableSchema} = require('graphql-tools');
 const {SubscriptionServer} = require('subscriptions-transport-ws');
 const {createServer} = require('http');
 const {execute, subscribe} = require('graphql');
-const {PubSub, withFilter} = require('graphql-subscriptions');
+const {PubSub} = require('graphql-subscriptions');
 const cors = require('cors');
 const sleep = require('sleep');
 const _ = require('lodash');
 
 
 var PORT = 3000;
+var blockNameCounter = 10;
 
 // The GraphQL schema in string form
 const typeDefs = `
+
   #
-  # queries
+  # Why we use input object pattern for mutations? Please read the following:
+  # https://dev-blog.apollodata.com/designing-graphql-mutations-e09de826ed97
+  #
+  
+  #
+  # Queries
   #
 
   type Query { 
@@ -27,7 +34,7 @@ const typeDefs = `
       name: String!
       uid: String!
       color: String!
-      position: BlockPosition
+      position: BlockPosition!
   }
   
   type BlockPosition { 
@@ -36,16 +43,22 @@ const typeDefs = `
   }
   
   #
-  # mutations
+  # Mutations
   #
   
   type Mutation {    
-     blockMove(input: BlockMoveInput): BlockMovePayload    
-     blockAdd(input: BlockAddInput): BlockAddPayload
+     blockMove(input: BlockMoveMutationInput!): BlockMoveMutationPayload     
+     blockAdd(input: BlockAddMutationInput!): BlockAddMutationPayload
   }
     
-  input BlockMoveInput {
+  input BlockMoveMutationInput {
       uid: String!
+      position: BlockPositionInput
+  }
+   
+  input BlockAddMutationInput {
+      uid: String!
+      name: String!
       position: BlockPositionInput
   }
   
@@ -53,47 +66,49 @@ const typeDefs = `
       top: Int!
       left: Int!
   }
-
-  type BlockMovePayload {
+  
+  type BlockMoveMutationPayload {
       result: Boolean!
   }
-  
-  type BlockAddPayload {
+
+  type BlockAddMutationPayload {
       block: Block!
   }
 
-  input BlockAddInput {
-      uid: String!
-      name: String!
-      position: BlockPositionInput
-  }
-  
   #
-  # subscriptions
+  # Subscriptions
   #
   
   type Subscription { 
-      blockAdd(input: blockAddSubscriptionInput): blockAddSubscriptionPayload
-      blockMove(input: blockMoveSubscriptionInput): blockMoveSubscriptionPayload
+      blockAdd(input: BlockAddSubscriptionInput): BlockAddSubscriptionPayload
+      blockMove(input: BlockMoveSubscriptionInput): BlockMoveSubscriptionPayload
   }
 
-  type BlockMoveEvent {
-      input: BlockMoveParams!,
-      payload: BlockMovePayload! 
-  }
-
-  type BlockAddEvent {
-      input: BlockMoveParams!,
-      payload: BlockAddPayload
+  input BlockAddSubscriptionInput {
+    nothing: String
   }
   
-  type BlockAddParams {
+  type BlockAddSubscriptionPayload {
+      input: BlockAddMutationType
+      payload: BlockAddMutationPayload
+  }
+  
+  type BlockAddMutationType {
       uid: String!
       name: String!
       position: BlockPosition!
   }  
-  
-  type BlockMoveParams {
+
+  input BlockMoveSubscriptionInput {
+    nothing: String
+  }
+
+  type BlockMoveSubscriptionPayload {
+      input: BlockMoveMutationType!
+      payload: Boolean! 
+  }
+ 
+  type BlockMoveMutationType {
       uid: String!
       position: BlockPosition!  
   }
@@ -101,6 +116,7 @@ const typeDefs = `
 
 const pubsub = new PubSub();
 
+// Server initial data.
 this.blocks = [
     {
         name: 'Block #1',
@@ -125,7 +141,6 @@ this.blocks = [
 const resolvers = {
     //
     Query: {
-        //books: () => books,
         blocks: () => {
             sleep.sleep(1);
             return this.blocks;
@@ -136,9 +151,8 @@ const resolvers = {
     Mutation: {
         blockAdd: {
             resolve: (payload, args, context, info) => {
-                console.log('mutation.blockAdd', payload, args, context, info);
                 let block = {
-                    name: args.input.name,
+                    name: 'block #' + blockNameCounter++,
                     uid: args.input.uid,
                     color: _.sample(['khaki', 'hotpink', 'grey', 'lightblue', 'red']),
                     position: {
@@ -149,33 +163,34 @@ const resolvers = {
 
                 this.blocks.push(block);
 
-                setTimeout(function() {
-                    pubsub.publish('blockAdd', {args, result: block});
-                }, 2);
-
                 sleep.sleep(1);
-                return block;
+
+                setTimeout(function () {
+                    let subscriptionPayload = {input: args, payload: {block}};
+                    pubsub.publish('blockAdd', subscriptionPayload);
+                }, 500);
+
+                return {block};
             },
         },
         blockMove: {
             resolve: (payload, args, context, info) => {
-                console.log('mutation.blockMove', payload, args, context, info);
-
-                let block = _.find(this.blocks, function(block) {
+                let block = _.find(this.blocks, function (block) {
                     return block.uid === args.input.uid
                 });
 
                 block.position.top = args.input.position.top;
                 block.position.left = args.input.position.left;
 
-                setTimeout(function() {
+                let result = {result: true};
+                setTimeout(function () {
                     pubsub.publish('blockMove', {
-                        args: args.input,
-                        result: true
+                        input: args.input,
+                        payload: result
                     });
                 }, 1000);
 
-                return true;
+                return result;
             },
         }
     },
@@ -184,54 +199,51 @@ const resolvers = {
     Subscription: {
         blockAdd: {
             resolve: (payload, args, context, info) => {
-                console.log('subscription move', payload, args, context, info);
                 return payload;
 
             },
-            subscribe: (res) => {
-                console.log('!!!! res', arguments);
+            subscribe: () => {
                 return pubsub.asyncIterator('blockAdd')
             }
         },
         blockMove: {
             resolve: (payload, args, context, info) => {
-                console.log('subscription blockMove', payload, args, context, info);
                 return payload;
             },
-            subscribe: (res) => {
+            subscribe: () => {
                 return pubsub.asyncIterator('blockMove')
             }
         }
     }
 };
 
-// Put together a schema
+// Put together a schema.
 const schema = makeExecutableSchema({
     typeDefs,
     resolvers,
 });
 
-// Initialize the app
+// Initialize the app.
 const app = express();
 
 app.use(cors());
 
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
 });
 
-// The GraphQL endpoint
+// The GraphQL endpoint.
 app.use('/graphql', bodyParser.json(), graphqlExpress({schema}));
 
-// GraphiQL, a visual editor for queries
+// GraphiQL, a visual editor for queries.
 app.use('/graphiql', graphiqlExpress({
     endpointURL: '/graphql',
     subscriptionsEndpoint: `ws://localhost:${PORT}/subscriptions`
 }));
 
-// start subscription server
+// Start subscription server.
 const ws = createServer(app);
 ws.listen(PORT, () => {
     console.log(`Apollo Server is now running on http://localhost:${PORT}`);

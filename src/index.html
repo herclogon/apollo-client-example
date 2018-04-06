@@ -17,21 +17,26 @@
     <div class="app-container__panel-container">
         <div class="app-container__panel">
         </div>
-        <div class="app-container__panel">
-        </div>
     </div>
 </div>
 
 <script>
-    (function() {
+    (function () {
         var client = createGraphQlClient();
         var counter = 10;
+        var query;
 
-        init();
+        _loadBlocks();
+        _activateBlockAddSubscription();
+        _activateBlockMoveSubscription();
+        _activateBlockAddButtonListener();
 
-        function init() {
-            // initial data load
-            this.query = gql(`
+        function _activateBlockAddButtonListener() {
+            $('.app-container__add-block-button').click(_onBlockAddClick);
+        }
+
+        function _loadBlocks() {
+            query = gql(`
                 query blocks {
                     blocks {
                         name
@@ -45,31 +50,61 @@
                 }`
             );
 
-            client.watchQuery({
-                query: query
-            }).subscribe(_onQueryChange);
-
-
-
-            $('.app-container__add-block-button').click(_onBlockAddClick);
-
-
-
-            _activateSubscriptions();
+            client.watchQuery({query}).subscribe(_onQueryChange);
         }
 
+        function _activateBlockMoveSubscription() {
+            let moveSubscription = gql(`
+                subscription blockMove {
+                    blockMove {
+                        input {
+                            uid
+                            position {
+                                top
+                                left
+                            }
+                        }
+                    }
+                }`
+            );
+
+            client.subscribe({
+                query: moveSubscription,
+                variables: {}
+            }).subscribe(function (response) {
+                console.log('>>> blockMove subscription subscribe()');
+
+                const data = client.readQuery({query});
+                let block = _.find(data.blocks, function (block) {
+                    return block.uid === response.data.blockMove.input.uid;
+                });
+
+                block.position.top = response.data.blockMove.input.position.top;
+                block.position.left = response.data.blockMove.input.position.left;
+
+                client.writeQuery({query: query, data});
+            });
+
+        }
+
+        /**
+         * Run `blockAdd` mutation, update Apollo client cache
+         * thought optimistic response.
+         */
         function _onBlockAddClick(event) {
             let addBlockMutation = gql(`
-                mutation blockAdd($input: BlockAddInput!) {
+                mutation blockAdd($input: BlockAddMutationInput!) {
                     blockAdd(input: $input) {
-                      name
-                      uid
-                      color
-                      position {
-                        top
-                        left
-                      }
+                        block {
+                        name
+                        uid
+                        color
+                        position {
+                            top
+                            left
+                        }
                     }
+                }
               }`
             );
 
@@ -87,72 +122,70 @@
                         }
                     }
                 },
+                // immediately touch watchQueries to update
+                // UI with expected mutation result
                 optimisticResponse: {
                     __typename: "Mutation",
                     blockAdd: {
-                        name,
-                        uid,
-                        color: 'white',
-                        position: {
-                            top: 15,
-                            left: 15,
-                            __typename: "BlockPosition",
+                        block: {
+                            name,
+                            uid,
+                            color: 'white',
+                            position: {
+                                top: 15,
+                                left: 15,
+                                __typename: "BlockPosition",
+                            },
+                            __typename: "Block"
                         },
-                        __typename: "Block",
+
                     }
                 },
-                update: function(proxy, optimisticResponse) {
-                    // Read the data from our cache for this query.
-                    const data = proxy.readQuery({query: this.query});
-                    data.blocks.push(optimisticResponse.data.blockAdd);
-                    console.log('!!!!!!!!!!!!', optimisticResponse, data);
-                    console.log('WRITE', {query: this.query, data});
-                    proxy.writeQuery({query: this.query, data});
+                update: function (proxy, response) {
+                    console.log('>>> blockAdd mutation update()');
+                    // update GraphQL cache according to expected result
+                    // and once more on original backend result
+                    const data = proxy.readQuery({query});
+
+                    let block = _.find(data.blocks, function (block) {
+                        return block.uid === response.data.blockAdd.block.uid;
+                    });
+
+                    // add block if not exist and update if exits
+                    // uses in first time to add the block with optimistic response
+                    // and second time with original backend response
+                    if (!block) {
+                        data.blocks.push(response.data.blockAdd.block);
+                    } else {
+                        _.assign(block, [response.data.blockAdd.block]);
+                    }
+
+                    proxy.writeQuery({query: query, data});
                 }
-            }).then(function(res) {
-                console.log('_onBlockAddClick < ', res);
-                _syncBlock(res.data.blockAdd)
+            }).then(function (response) {
+                console.log('>>> blockAdd mutation then()');
+                // start a backend call and do nothing when on result income
+                // because of using optimistic UI mechanics
+                // and on .then() function call .update() function also will call
             });
         }
 
-        function _activateSubscriptions() {
-            let moveSubscription = gql(`
-                subscription blockMove {
-                    blockMove {
-                        args {
-                          uid
-                          position {
-                            top
-                            left
-                          }
-                        }
-                        result
-                    }
-                }`
-            );
-
-            client.subscribe({
-                query: moveSubscription,
-                variables: {}
-            }).subscribe(function(res) {
-                console.log(Date.now(), 'client.subscribe', res);
-                let elSelector = ".app-container__draggable-block[data-block_id='"
-                    + res.data.blockMove.args.uid + "']";
-                console.log('elSelector = ', elSelector);
-                _syncBlock(res.data.blockMove.args);
-            });
-
-
+        /**
+         * Add block to Apollo cache on block add subscription.
+         */
+        function _activateBlockAddSubscription() {
             let blockAddSubscription = gql(`
                 subscription blockAdd {
                     blockAdd {
-                        result {
-                            uid
-                            name
-                            color
-                            position {
-                                top
-                                left
+                        payload {
+                            block {
+                               uid
+                               name
+                               color
+                                position {
+                                    top
+                                    left
+                                }
                             }
                         }
                     }
@@ -161,20 +194,35 @@
 
             client.subscribe({
                 query: blockAddSubscription,
-                variables: {}
-            }).subscribe(function(res) {
-                console.log(Date.now(), 'blockAddSubscription', res);
-                let elSelector = ".app-container__draggable-block[data-block_id='"
-                    + res.data.blockAdd.result.uid + "']";
-                console.log('elSelector = ', elSelector);
-                _syncBlock(res.data.blockAdd.result);
+                variables: {},
+            }).subscribe(function (response) {
+                console.log('>>> blockAdd subscription subscribe()');
+
+                let data = client.readQuery({query});
+                let block = _.find(data.blocks, function (block) {
+                    return block.uid === response.data.blockAdd.payload.block.uid;
+                });
+
+                // add block if not exist and update if exits
+                if (!block) {
+                    data.blocks.push(response.data.blockAdd.payload.block);
+                } else {
+                    _.assign(block, [response.data.blockAdd.payload.block]);
+                }
+
+                client.writeQuery({query, data});
             });
         }
 
+        /**
+         * Send to backend a new position of the block.
+         */
         function _onBlockMove(event, ui) {
             let blockMoveMutation = gql(`
-                mutation blockMove($input: BlockMoveInput!) {
-                    blockMove(input: $input)
+                mutation blockMove($input: BlockMoveMutationInput!) {
+                    blockMove(input: $input) {
+                      result
+                    }
                 }`
             );
 
@@ -185,18 +233,20 @@
                 }
             };
 
-            console.log('blockMoveMutation > ', variables);
             client.mutate({
                 mutation: blockMoveMutation,
                 variables: variables
-            }).then(function(res) {
-                console.log('blockMoveMutation < ', res);
+            }).then(function (res) {
+                console.log('>>> blockMove mutation then()');
             });
         }
 
+        /**
+         * Redraw all blocks on query change.
+         */
         function _onQueryChange(event) {
             console.log('_onQueryChange', event.data);
-            event.data.blocks.forEach(function(block) {
+            event.data.blocks.forEach(function (block) {
                 _syncBlock(block);
             });
         }
@@ -209,7 +259,6 @@
          */
         function _syncBlock(block) {
             let elBlock = $(`.app-container__draggable-block[data-block_uid="${block.uid}"]`);
-            console.log('elBlock', block, elBlock);
             if (typeof elBlock[0] !== 'undefined') {
                 elBlock.css({
                     top: block.position.top,
@@ -237,6 +286,9 @@
             }
         }
 
+        /**
+         * Create a Apollo GraphQL client instances connected to backend.
+         */
         function createGraphQlClient() {
             var apolloHttpLinkUrl = 'http://localhost:3000/graphql';
             var apolloWebSocketLinkUrl = 'ws://localhost:3000/subscriptions';
@@ -271,7 +323,6 @@
 
             return client;
         }
-
     })();
 </script>
 
